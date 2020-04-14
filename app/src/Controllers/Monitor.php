@@ -40,11 +40,25 @@ class Monitor extends BaseController
      */
     public function main(): ResponseInterface
     {
+        $struct = [];
         /** @var Server $Server */
-        $Server = self::get_service('Service');
-        $IpcRequest = new IpcRequest(Method::HTTP_GET, '/admin/app-server-monitor/worker-info-provider');
-        $responses = $Server->send_broadcast_ipc_request($IpcRequest);
+        $Server = self::get_service('Server');
+        $IpcRequest = new IpcRequest(Method::HTTP_GET, '/api/admin/app-server-monitor/worker-info-provider');
+        $ipc_responses = $Server->send_broadcast_ipc_request($IpcRequest);
+        foreach ($ipc_responses as $IpcResponse) {
+            if ($IpcResponse) {
+                $resp_struct = $IpcResponse->getBody()->getStructure();
+            } else {
+                $resp_struct = 'no data received';
+            }
 
+            //$struct['workers'][$resp_struct['general']['worker_id']] = $resp_struct;
+            $struct[] = $resp_struct;
+        }
+        //we need to add the current worker data
+        $struct[] = $this->execute_controller_action_structured(Responder::class, 'worker_info_provider');
+
+        return self::get_structured_ok_response($struct);
     }
 
 }

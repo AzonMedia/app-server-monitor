@@ -38,6 +38,8 @@ class Responder extends BaseController
      * - locks
      * - query cache
      * - context cache
+     * - number of busy connections for each connection class
+     * - number of available connections for each connection class
      * Plugins:
      * - request cache
      * @return ResponseInterface
@@ -49,22 +51,27 @@ class Responder extends BaseController
         $Server = self::get_service('Server');
 
         $struct = [];
+
         $struct['memory'] = [
             'usage'             => memory_get_usage(),
             'usage_real'        => memory_get_usage(TRUE),
             'peak_usage'        => memory_get_peak_usage(),
             'peak_usage_real'   => memory_get_peak_usage(TRUE),
         ];
+
         $struct['gc'] = [
-            'status'            => gc_status(),
+            //'status'            => gc_status(),
             'enabled'           => gc_enabled(),
         ];
+        $struct['gc'] += gc_status();
+
         $struct['general'] = [
             'worker_id'         => $Server->get_worker_id(),
             'pid'               => getmypid(),
             'total_coroutines'  => Coroutine::getCid(),//get the current coroutine ID - this is the last coroutine so this is the total number,
             'active_coroutines' => count(Coroutine::listCoroutines()),//the number of active coroutines
         ];
+
         //the Memory store should be the first store (if it is used).
         /** @var Memory $OrmStore */
         $OrmStore = self::get_service('OrmStore');
