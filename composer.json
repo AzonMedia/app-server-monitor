@@ -1,0 +1,26 @@
+{
+    "name": "guzaba-platform/app-server-monitor",
+    "type": "guzaba-platform-component",
+    "description": "Application server (Swoole) monitor",
+    "keywords": ["server monitor","swoole"],
+    "homepage": "https://github.com/AzonMedia/component-app-server-monitor",
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "Vesko Kenashkov",
+            "email": "kenashkov@azonmedia.com",
+            "homepage": "http://azonmedia.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.2.0",
+        "azonmedia/components": "dev-master",
+        "composer/composer": "^1.9"
+    },
+    "autoload": {
+        "psr-4": {
+            "GuzabaPlatform\\AppServer\\Monitor\\": "app/src/"
+        }
+    }
+}
