@@ -16,8 +16,11 @@ class Responder extends BaseController
 
     protected const CONFIG_DEFAULTS = [
         'routes'        => [
-            '/admin/app-server-monitor/worker-info-provider' => [
-                Method::HTTP_GET => [self::class, 'worker_info_provider']
+            '/admin/app-server-monitor/worker-info' => [
+                Method::HTTP_GET => [self::class, 'worker_info']
+            ],
+            '/admin/app-server-monitor/clear-all-caches' => [ // /{percentage} - what percentage to clear
+                Method::HTTP_GET => [self::class, 'clear_all_caches']
             ],
         ],
         'services'      => [
@@ -45,12 +48,20 @@ class Responder extends BaseController
      * @return ResponseInterface
      * @throws \Guzaba2\Base\Exceptions\RunTimeException
      */
-    public function worker_info_provider(): ResponseInterface
+    public function worker_info(): ResponseInterface
     {
         /** @var Server $Server */
         $Server = self::get_service('Server');
 
         $struct = [];
+
+        $struct['general'] = [
+            'worker_id'         => $Server->get_worker_id(),
+            'pid'               => $Server->get_worker_pid(),
+            'task_worker'       => $Server->is_task_worker(),
+            'total_coroutines'  => Coroutine::getCid(),//get the current coroutine ID - this is the last coroutine so this is the total number,
+            'active_coroutines' => count(Coroutine::listCoroutines()),//the number of active coroutines
+        ];
 
         $struct['memory'] = [
             'usage'             => memory_get_usage(),
@@ -64,13 +75,6 @@ class Responder extends BaseController
             'enabled'           => gc_enabled(),
         ];
         $struct['gc'] += gc_status();
-
-        $struct['general'] = [
-            'worker_id'         => $Server->get_worker_id(),
-            'pid'               => getmypid(),
-            'total_coroutines'  => Coroutine::getCid(),//get the current coroutine ID - this is the last coroutine so this is the total number,
-            'active_coroutines' => count(Coroutine::listCoroutines()),//the number of active coroutines
-        ];
 
         //the Memory store should be the first store (if it is used).
         /** @var Memory $OrmStore */

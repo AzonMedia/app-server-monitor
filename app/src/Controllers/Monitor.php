@@ -43,7 +43,7 @@ class Monitor extends BaseController
         $struct = [];
         /** @var Server $Server */
         $Server = self::get_service('Server');
-        $IpcRequest = new IpcRequest(Method::HTTP_GET, '/api/admin/app-server-monitor/worker-info-provider');
+        $IpcRequest = new IpcRequest(Method::HTTP_GET, '/api/admin/app-server-monitor/worker-info');
         $ipc_responses = $Server->send_broadcast_ipc_request($IpcRequest);
         foreach ($ipc_responses as $IpcResponse) {
             if ($IpcResponse) {
@@ -53,10 +53,17 @@ class Monitor extends BaseController
             }
 
             //$struct['workers'][$resp_struct['general']['worker_id']] = $resp_struct;
-            $struct[] = $resp_struct;
+            $struct['workers'][] = $resp_struct;
         }
         //we need to add the current worker data
-        $struct[] = $this->execute_controller_action_structured(Responder::class, 'worker_info_provider');
+        $struct['workers'][] = $this->execute_controller_action_structured(Responder::class, 'worker_info');
+
+        $struct['general'] = [
+            'responding_worker_id'  => $Server->get_worker_id(),//the worker ID that sent this response
+            'master_pid'            => $Server->get_master_pid(),
+            'manager_pid'           => $Server->get_manager_pid(),
+            'options'               => $Server->get_all_options(),
+        ];
 
         return self::get_structured_ok_response($struct);
     }
