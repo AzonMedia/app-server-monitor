@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace GuzabaPlatform\AppServer\Monitor\Controllers;
 
+use Guzaba2\Authorization\CurrentUser;
+use Guzaba2\Coroutine\Coroutine;
 use Guzaba2\Http\Method;
 use Guzaba2\Swoole\IpcRequest;
 use Guzaba2\Swoole\Server;
@@ -14,15 +16,23 @@ class Monitor extends BaseController
 
     protected const CONFIG_DEFAULTS = [
         'routes'        => [
-            '/admin/app-server-monitor' => [
-                Method::HTTP_GET_HEAD_OPT => [self::class, 'main']
+            '/admin/app-server-monitor'                     => [
+                Method::HTTP_GET                                => [self::class, 'main']
             ],
-            '/admin/crud-objects/{class_name}/{page}/{limit}/{search_values}/{sort_by}/{sort_desc}' => [
-                Method::HTTP_GET_HEAD_OPT => [self::class, 'objects']
+            '/admin/app-server-monitor/clear-orm-cache'     => [ //the percentage and workers_ids should be provided in the POST
+                Method::HTTP_POST                               => [self::class, 'objects']
             ],
+            '/admin/app-server-monitor/clear-query-cache'   => [ //the percentage and workers_ids should be provided in the POST
+                Method::HTTP_POST                               => [self::class, 'objects']
+            ],
+            '/admin/app-server-monitor/trigger-gc'          => [ //the percentage and workers_ids should be provided in the POST
+                Method::HTTP_POST                               => [self::class, 'objects']
+            ],
+
         ],
         'services'      => [
-            'Server'
+            'Server',
+            'CurrentUser',//needed for localization
         ],
     ];
 
@@ -40,9 +50,12 @@ class Monitor extends BaseController
      */
     public function main(): ResponseInterface
     {
+
         $struct = [];
         /** @var Server $Server */
         $Server = self::get_service('Server');
+
+
         $IpcRequest = new IpcRequest(Method::HTTP_GET, '/api/admin/app-server-monitor/worker-info');
         $ipc_responses = $Server->send_broadcast_ipc_request($IpcRequest);
         foreach ($ipc_responses as $IpcResponse) {
@@ -51,21 +64,80 @@ class Monitor extends BaseController
             } else {
                 $resp_struct = 'no data received';
             }
-
-            //$struct['workers'][$resp_struct['general']['worker_id']] = $resp_struct;
             $struct['workers'][] = $resp_struct;
         }
+
         //we need to add the current worker data
         $struct['workers'][] = $this->execute_controller_action_structured(Responder::class, 'worker_info');
 
+        /** @var CurrentUser $CurrentUser */
+        $CurrentUser = self::get_service('CurrentUser');
+
         $struct['general'] = [
-            'responding_worker_id'  => $Server->get_worker_id(),//the worker ID that sent this response
-            'master_pid'            => $Server->get_master_pid(),
-            'manager_pid'           => $Server->get_manager_pid(),
-            'options'               => $Server->get_all_options(),
+            'responding_worker_id'              => $Server->get_worker_id(),//the worker ID that sent this response
+            'responding_cid'                    => Coroutine::getCid(),
+            'master_pid'                        => $Server->get_master_pid(),
+            'manager_pid'                       => $Server->get_manager_pid(),
+            'options'                           => $Server->get_all_options(),
+            'server_start_microtime'            => $Server->get_start_microtime(),
+            'server_start_formatted_time'       => date( $CurrentUser->get()->get_date_time_format(), (int) $Server->get_start_microtime() ),
         ];
 
         return self::get_structured_ok_response($struct);
     }
 
+    /**
+     *
+     * The garbage collector can be triggered but this may not bring memory savings as the caches are stored in arrays not objects.
+     * @param float $percentage
+     * @param array $worker_ids If empty array is provided it applies to all workers
+     * @param bool $trigger_gc Should the garbage collector be triggered after the cleanup
+     * @return ResponseInterface
+     */
+    public function clear_orm_cache(float $percentage = 100, bool $trigger_gc = TRUE, array $worker_ids = []): ResponseInterface
+    {
+
+    }
+
+    /**
+     * @param float $percentage
+     * @param bool $trigger_gc
+     * @param array $worker_ids
+     * @return ResponseInterface
+     */
+    public function clear_query_cache(float $percentage = 100, bool $trigger_gc = TRUE, array $worker_ids = []): ResponseInterface
+    {
+
+    }
+
+    public function trigger_gc(array $worker_ids = []): ResponseInterface
+    {
+
+    }
+
+    /**
+     * Clears Orm & Query cache and optionally calls the GC.
+     * @param bool $trigger_gc
+     * @param array $worker_ids
+     * @return ResponseInterface
+     */
+    public function clear_all_caches(bool $trigger_gc = TRUE, array $worker_ids = []): ResponseInterface
+    {
+
+    }
+
+
+    public function set_memory_limit(int $limit_bytes, array $worker_ids = [])
+    {
+
+    }
+
+    /**
+     * Performs a graceful reload of all workers
+     * @return ResponseInterface
+     */
+    public function reload_server(): ResponseInterface
+    {
+
+    }
 }

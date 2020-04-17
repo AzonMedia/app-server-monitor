@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace GuzabaPlatform\AppServer\Monitor\Controllers;
 
 
+use Guzaba2\Base\Exceptions\RunTimeException;
 use Guzaba2\Coroutine\Coroutine;
 use Guzaba2\Http\Method;
+use Guzaba2\Kernel\Runtime;
 use Guzaba2\Orm\Store\Memory;
 use Guzaba2\Swoole\Server;
 use GuzabaPlatform\Platform\Application\BaseController;
@@ -40,13 +42,17 @@ class Responder extends BaseController
      * - meta store
      * - locks
      * - query cache
-     * - context cache
      * - number of busy connections for each connection class
      * - number of available connections for each connection class
      * Plugins:
      * - request cache
      * @return ResponseInterface
-     * @throws \Guzaba2\Base\Exceptions\RunTimeException
+     * @throws RunTimeException
+     * @throws \Azonmedia\Exceptions\InvalidArgumentException
+     * @throws \Guzaba2\Base\Exceptions\InvalidArgumentException
+     * @throws \Guzaba2\Base\Exceptions\LogicException
+     * @throws \Guzaba2\Coroutine\Exceptions\ContextDestroyedException
+     * @throws \ReflectionException
      */
     public function worker_info(): ResponseInterface
     {
@@ -56,18 +62,29 @@ class Responder extends BaseController
         $struct = [];
 
         $struct['general'] = [
-            'worker_id'         => $Server->get_worker_id(),
-            'pid'               => $Server->get_worker_pid(),
-            'task_worker'       => $Server->is_task_worker(),
-            'total_coroutines'  => Coroutine::getCid(),//get the current coroutine ID - this is the last coroutine so this is the total number,
-            'active_coroutines' => count(Coroutine::listCoroutines()),//the number of active coroutines
+            'worker_id'                 => $Server->get_worker_id(),
+            'worker_start_microtime'    => $Server->get_worker()->get_start_microtime(),
+            'worker_pid'                => $Server->get_worker_pid(),
+            'is_task_worker'            => $Server->is_task_worker(),
+        ];
+        $struct['coroutines'] = [
+            'total_coroutines'          => Coroutine::getCid(),//get the current coroutine ID - this is the last coroutine so this is the total number,
+            'active_coroutines'         => count(Coroutine::listCoroutines()),//the number of active coroutines
+            'stats'                     => Coroutine::stats(),
+        ];
+        $struct['requests'] = [
+            'served_requests'           => $Server->get_worker()->get_served_requests(),
+            'served_pipe_requests'      => $Server->get_worker()->get_served_pipe_requests(),
+            'served_console_requests'   => $Server->get_worker()->get_served_console_requests(),
+            'current_requests'          => $Server->get_worker()->get_current_requests(),
         ];
 
         $struct['memory'] = [
-            'usage'             => memory_get_usage(),
-            'usage_real'        => memory_get_usage(TRUE),
-            'peak_usage'        => memory_get_peak_usage(),
-            'peak_usage_real'   => memory_get_peak_usage(TRUE),
+            'limit'                     => Runtime::get_memory_limit(),
+            'usage'                     => memory_get_usage(),
+            'usage_real'                => memory_get_usage(TRUE),
+            'peak_usage'                => memory_get_peak_usage(),
+            'peak_usage_real'           => memory_get_peak_usage(TRUE),
         ];
 
         $struct['gc'] = [
@@ -90,4 +107,8 @@ class Responder extends BaseController
 
         return self::get_structured_ok_response($struct);
     }
+
+
+
+
 }
