@@ -6,6 +6,7 @@ namespace GuzabaPlatform\AppServer\Monitor\Controllers;
 use Guzaba2\Authorization\CurrentUser;
 use Guzaba2\Coroutine\Coroutine;
 use Guzaba2\Http\Method;
+use Guzaba2\Http\StatusCode;
 use Guzaba2\Swoole\IpcRequest;
 use Guzaba2\Swoole\Server;
 use GuzabaPlatform\Platform\Application\BaseController;
@@ -27,6 +28,9 @@ class Monitor extends BaseController
             ],
             '/admin/app-server-monitor/trigger-gc'          => [ //the percentage and workers_ids should be provided in the POST
                 Method::HTTP_POST                               => [self::class, 'objects']
+            ],
+            '/admin/app-server-monitor/set-memory-limit'    => [ //the percentage and workers_ids should be provided in the POST
+                Method::HTTP_POST                               => [self::class, 'set_memory_limit']
             ],
 
         ],
@@ -55,20 +59,7 @@ class Monitor extends BaseController
         /** @var Server $Server */
         $Server = self::get_service('Server');
 
-
-        $IpcRequest = new IpcRequest(Method::HTTP_GET, '/api/admin/app-server-monitor/worker-info');
-        $ipc_responses = $Server->send_broadcast_ipc_request($IpcRequest);
-        foreach ($ipc_responses as $IpcResponse) {
-            if ($IpcResponse) {
-                $resp_struct = $IpcResponse->getBody()->getStructure();
-            } else {
-                $resp_struct = 'no data received';
-            }
-            $struct['workers'][] = $resp_struct;
-        }
-
-        //we need to add the current worker data
-        $struct['workers'][] = $this->execute_controller_action_structured(Responder::class, 'worker_info');
+        $struct['workers'] = $this->execute_broadcast_request(Method::HTTP_GET, '/api/admin/app-server-monitor/worker/info', Responder::class, 'worker_info');
 
         /** @var CurrentUser $CurrentUser */
         $CurrentUser = self::get_service('CurrentUser');
@@ -129,7 +120,20 @@ class Monitor extends BaseController
 
     public function set_memory_limit(int $limit_bytes, array $worker_ids = [])
     {
+        $struct = [];
 
+        //print $limit_bytes.PHP_EOL;
+        //return self::get_structured_ok_response($struct);
+
+        $struct['workers'] = $this->execute_broadcast_request(
+            Method::HTTP_POST,
+            '/api/admin/app-server-monitor/worker/set-memory-limit',
+            Responder::class,
+            'set_memory_limit',
+            ['limit_bytes' => $limit_bytes]
+        );
+
+        return self::get_structured_ok_response($struct);
     }
 
     /**

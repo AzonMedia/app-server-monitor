@@ -12,17 +12,21 @@ use Guzaba2\Orm\Store\Memory;
 use Guzaba2\Swoole\Server;
 use GuzabaPlatform\Platform\Application\BaseController;
 use Psr\Http\Message\ResponseInterface;
+use Guzaba2\Translator\Translator as t;
 
 class Responder extends BaseController
 {
 
     protected const CONFIG_DEFAULTS = [
         'routes'        => [
-            '/admin/app-server-monitor/worker-info' => [
+            '/admin/app-server-monitor/worker/info' => [
                 Method::HTTP_GET => [self::class, 'worker_info']
             ],
-            '/admin/app-server-monitor/clear-all-caches' => [ // /{percentage} - what percentage to clear
-                Method::HTTP_GET => [self::class, 'clear_all_caches']
+            '/admin/app-server-monitor/worker/clear-all-caches' => [ // /{percentage} - what percentage to clear
+                Method::HTTP_POST => [self::class, 'clear_all_caches']
+            ],
+            '/admin/app-server-monitor/worker/set-memory-limit' => [ // /{percentage} - what percentage to clear
+                Method::HTTP_POST => [self::class, 'set_memory_limit']
             ],
         ],
         'services'      => [
@@ -105,6 +109,18 @@ class Responder extends BaseController
         $QueryCache = self::get_service('QueryCache');
         $struct['query_cache'] = $QueryCache->get_stats();
 
+        return self::get_structured_ok_response($struct);
+    }
+
+    public function set_memory_limit(int $limit_bytes): ResponseInterface
+    {
+        /** @var Server $Server */
+        $Server = self::get_service('Server');
+
+        $struct = [];
+        $old_limit = Runtime::get_memory_limit();
+        Runtime::set_memory_limit($limit_bytes);
+        $struct['message'] = sprintf(t::_('The memory limit for worker ID %1s was changed from %2s to %3s bytes.'), $Server->get_worker_id(), $old_limit, $limit_bytes);
         return self::get_structured_ok_response($struct);
     }
 
