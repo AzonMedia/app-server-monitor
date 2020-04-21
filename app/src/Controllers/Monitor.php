@@ -21,15 +21,15 @@ class Monitor extends BaseController
                 Method::HTTP_GET                                => [self::class, 'main']
             ],
             '/admin/app-server-monitor/clear-orm-cache'     => [ //the percentage and workers_ids should be provided in the POST
-                Method::HTTP_POST                               => [self::class, 'objects']
+                Method::HTTP_POST                               => [self::class, 'clear_orm_cache']
             ],
             '/admin/app-server-monitor/clear-query-cache'   => [ //the percentage and workers_ids should be provided in the POST
-                Method::HTTP_POST                               => [self::class, 'objects']
+                Method::HTTP_POST                               => [self::class, 'clear_query_cache']
             ],
             '/admin/app-server-monitor/trigger-gc'          => [ //the percentage and workers_ids should be provided in the POST
-                Method::HTTP_POST                               => [self::class, 'objects']
+                Method::HTTP_POST                               => [self::class, 'trigger_gc']
             ],
-            '/admin/app-server-monitor/set-memory-limit'    => [ //the percentage and workers_ids should be provided in the POST
+            '/admin/app-server-monitor/set-memory-limit'    => [
                 Method::HTTP_POST                               => [self::class, 'set_memory_limit']
             ],
 
@@ -77,6 +77,56 @@ class Monitor extends BaseController
         return self::get_structured_ok_response($struct);
     }
 
+    public function supported_actions(): ResponseInterface
+    {
+        $struct = [];
+        $struct['buttons'] = [
+            [
+                'name'      => sprintf(t::_('Clear ORM cache')),
+                'method'    => Method::HTTP_POST,
+                'route'     => '/admin/app-server-monitor/clear-orm-cache',
+                'arguments' => [
+                    [
+                        'text'  => sprintf(t::_('Percentage')),
+                        'name'  => 'percentage',
+                        'value' => 100,
+                    ],
+                    [
+                        'text'  => sprintf(t::_('Trigger GC')),
+                        'name'  => 'trigger_gc',
+                        'value' => TRUE,
+                    ]
+                    //and of course there will be always provided the $worker_ids array
+                ],
+            ],
+
+            [
+                'name'      => sprintf(t::_('Clear Query cache')),
+                'method'    => Method::HTTP_POST,
+                'route'     => '/admin/app-server-monitor/clear-query-cache',
+                'arguments' => [
+                    [
+                        'text'  => sprintf(t::_('Percentage')),
+                        'name'  => 'percentage',
+                        'value' => 100,
+                    ],
+                    [
+                        'text'  => sprintf(t::_('Trigger GC')),
+                        'name'  => 'trigger_gc',
+                        'value' => TRUE,
+                    ]
+                    //and of course there will be always provided the $worker_ids array
+                ],
+            ],
+
+            [
+                'name'      => sprintf(t::_('Trigger GC')),
+                'method'    => Method::HTTP_POST,
+                'route'     => '/admin/app-server-monitor/trigger-gc',
+            ],
+        ];
+    }
+
     /**
      *
      * The garbage collector can be triggered but this may not bring memory savings as the caches are stored in arrays not objects.
@@ -117,15 +167,32 @@ class Monitor extends BaseController
 
     }
 
-
-    public function set_memory_limit(int $limit_bytes, array $worker_ids = [])
+    /**
+     * @param int $limit_bytes
+     * @param int[] $workers_ids
+     * @return ResponseInterface
+     * @throws \Azonmedia\Exceptions\InvalidArgumentException
+     * @throws \Guzaba2\Base\Exceptions\InvalidArgumentException
+     * @throws \Guzaba2\Base\Exceptions\LogicException
+     * @throws \Guzaba2\Base\Exceptions\RunTimeException
+     * @throws \Guzaba2\Coroutine\Exceptions\ContextDestroyedException
+     * @throws \Guzaba2\Kernel\Exceptions\ConfigurationException
+     * @throws \ReflectionException
+     */
+    public function set_memory_limit(int $limit_bytes, array $workers_ids = [])
     {
         $struct = [];
 
         //print $limit_bytes.PHP_EOL;
         //return self::get_structured_ok_response($struct);
+        if (!count($workers_ids)) {
+            /** @var Server $Server */
+            $Server = self::get_service('Server');
+            $workers_ids = $Server->get_all_workers_ids();
+        }
 
-        $struct['workers'] = $this->execute_broadcast_request(
+        $struct['workers'] = $this->execute_multicast_request(
+            $workers_ids,
             Method::HTTP_POST,
             '/api/admin/app-server-monitor/worker/set-memory-limit',
             Responder::class,

@@ -112,16 +112,28 @@ class Responder extends BaseController
         return self::get_structured_ok_response($struct);
     }
 
+    /**
+     * @param int $limit_bytes
+     * @return ResponseInterface
+     * @throws RunTimeException
+     * @throws \Azonmedia\Exceptions\InvalidArgumentException
+     */
     public function set_memory_limit(int $limit_bytes): ResponseInterface
     {
         /** @var Server $Server */
         $Server = self::get_service('Server');
 
         $struct = [];
+
         $old_limit = Runtime::get_memory_limit();
         Runtime::set_memory_limit($limit_bytes);
         $struct['message'] = sprintf(t::_('The memory limit for worker ID %1s was changed from %2s to %3s bytes.'), $Server->get_worker_id(), $old_limit, $limit_bytes);
         return self::get_structured_ok_response($struct);
+    }
+
+    public function clear_all_caches(bool $trigger_gc): ResponseInterface
+    {
+
     }
 
 
