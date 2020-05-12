@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace GuzabaPlatform\AppServer\Monitor\Controllers;
 
+use Azonmedia\Utilities\GeneralUtil;
 use Guzaba2\Authorization\CurrentUser;
 use Guzaba2\Coroutine\Coroutine;
 use Guzaba2\Http\Method;
@@ -98,6 +99,12 @@ class Monitor extends BaseController
         ];
         $struct['server']['data']['stats'] = $Server->stats();
         $struct['server']['data']['options'] = $Server->get_all_options();
+        ob_start();
+        phpinfo();
+        $php_info = ob_get_contents();
+        ob_end_clean();
+        $struct['server']['data']['php'] = ['phpinfo' => $php_info];
+        print_r($struct);
 
 
         return self::get_structured_ok_response($struct);

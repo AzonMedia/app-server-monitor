@@ -196,7 +196,6 @@ class Responder extends BaseController
         if ($trigger_gc) {
             $messages[] = $this->execute_structured_action('trigger_gc')['message'];//no need to get the response from this controller
         }
-        print_r($messages);
         $struct['message'] = implode(' ', $messages);
         return self::get_structured_ok_response($struct);
     }
