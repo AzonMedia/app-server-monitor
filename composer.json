@@ -4,7 +4,7 @@
     "description": "Application server (Swoole) monitor",
     "keywords": ["server monitor","swoole"],
     "homepage": "https://github.com/AzonMedia/component-app-server-monitor",
-    "license": "BSD-3-Clause",
+    "license": "MIT",
     "authors": [
         {
             "name": "Vesko Kenashkov",
