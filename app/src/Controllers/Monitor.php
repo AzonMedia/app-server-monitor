@@ -104,7 +104,7 @@ class Monitor extends BaseController
         $php_info = ob_get_contents();
         ob_end_clean();
         $struct['server']['data']['php'] = ['phpinfo' => $php_info];
-        print_r($struct);
+
 
 
         return self::get_structured_ok_response($struct);
@@ -299,8 +299,8 @@ class Monitor extends BaseController
      * Performs a graceful reload of all workers
      * @return ResponseInterface
      */
-    public function reload_server(): ResponseInterface
-    {
-
-    }
+//    public function reload_server(): ResponseInterface
+//    {
+//
+//    }
 }
